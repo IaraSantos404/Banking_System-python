@@ -1,10 +1,4 @@
-#Fução saque deve receber argumentos apenas por nome
-#a de dposito apenas por posição 
-#extrato por posição e nome, posicionais: saldo, nomeado: extrato
-#criar usuario: armazena em uma lista e tem q ter nome, data de nascimento, cpf, endereço
-# (string com formato: logradouro - numero - bairro - cidade/sigla do estado, não pode cadastrar usuarios com o mesmo cpf)
-#conta corrente: tbm armazena em uma lista sendo composta por: agência, numero da conta e usuário,
-# o numero da agencia é fixo: 0001 e o da conta é sequencial começando em 1
+
 
 def menu():
     menu = """
