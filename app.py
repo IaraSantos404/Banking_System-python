@@ -1,255 +1,186 @@
-from abc import ABC, abstractmethod
-from datetime import datetime
-
-
-class Transacao(ABC):
-    @abstractmethod
-    def registrar(self, conta):
+import tkinter as tk
+from tkinter import messagebox, simpledialog
+from abc import ABC, abstractmethod 
+# conta corrente, conta poupança, deposito, saque, histórico, verifica conta
+#criar selecionar, remover, gerar relatório, sair
+# depositar, sacar, transferir, ver informações, sair
+class Conta(ABC):
+    def __init__(self, num_conta, saldo, transacoes ):
+        self.num_conta = num_conta
+        self._saldo = saldo
+        self.transacoes = transacoes
+    
+    @abstractmethod    
+    def depositar(self, valor):
         pass
-        
-class Deposito(Transacao):
-    def __init__(self, valor):
-        self._valor = valor
-        
-    def registrar(self, conta):
-        if self._valor > 0:
-            conta._saldo += self._valor
-            conta._historico.adicionar_transacao(f"Depósito de R${self._valor:.2f}\n")
-            print("Valor depositado com sucesso!")
-        else:
-            print("Valor inválido!")
-
-class Saque(Transacao):
-    def __init__(self, valor):
-        self._valor = valor
-        
-    def registrar(self, conta):
-        if conta.quant_saque < conta.max_saque:
-            if self._valor <= 0:
-                print("Valor inválido!")
-            elif self._valor > conta.limite_saque:
-                print("Operação inválida! O valor limite de saque é de R$500,00")
-            elif conta._saldo >= self._valor:
-                conta._saldo -= self._valor
-                conta._historico.adicionar_transacao(f"Saque de R${self._valor:.2f}\n")
-                print("Saque realizado com sucesso!")
-                conta.quant_saque += 1
-            else:
-                print("Saldo insuficiente!")
-        else:
-            print("Você já realizou os 3 saques diários")
-
-
-class Historico:
-    def __init__(self):
-        self.transacoes = []
-
-    def adicionar_transacao(self, transacao):
-        self.transacoes.append(transacao)
-
-
-class Conta:
-    def __init__(self, numero, cliente):
-        self._saldo = 0
-        self._numero = numero
-        self._agencia = "0001"
-        self._cliente = cliente
-        self.quant_saque = 0
-        self.max_saque = 3
-        self.limite_saque = 500
-        self._historico = Historico()
-        
-    @classmethod
-    def nova_conta(cls, cliente, numero):
-        return cls(cliente, numero)
     
-    @property
-    def saldo(self):
-        return self._saldo
-    
-    @property
-    def numero(self):
-        return self._numero
-    
-    @property
-    def agencia(self):
-        return self._agencia
-    
-    @property
-    def cliente(self):
-        return self._cliente
-    
-    @property
-    def historico(self):
-        return self._historico
-    
+    @abstractmethod
     def sacar(self, valor):
-        saque = Saque(valor)
-        saque.registrar(self)
+        pass
+    
+    @abstractmethod
+    def transferir(self, valor, conta_destino):
+        pass
+    
+    def mostrar_dados(self):
+        pass
+    
+
+class ContaCorrente(Conta):
+    def __init__(self, num_conta, saldo=0, transacoes = []):
+        super().__init__(num_conta, saldo, transacoes)
         
     def depositar(self, valor):
-        deposito = Deposito(valor)
-        deposito.registrar(self)
-    
-class ContaCorrente(Conta):
-    def __init__(self, numero, cliente, limite = 500, limite_saque = 3):
-        super().__init__(numero, cliente)
-        self._limite = limite
-        self._limite_saque = limite_saque
-
-class Cliente:
-    def __init__(self, nome, cpf):
-        self._nome = nome
-        self._cpf = cpf
-        self._contas = []
+        if valor > 0:
+            self._saldo += valor
+            self.transacoes.append(f"Depósito no valor de R${valor:.2f}")
+            
+        else:
+            messagebox.showerror("ERRO", "Valor inválido")
         
-    def realizar_transacao(self, conta, transacao):
-        transacao.registrar(conta)
-    
-    def adicionar_conta(self, conta):
-        self._contas.append(conta)
-    
-class PessoaFisica(Cliente):
-    def __init__(self, endereco, nome, cpf, data_nascimento):
-        super().__init__(endereco)
-        self.nome = nome
-        self.data_nascimento = data_nascimento
-        self.cpf = cpf
+    def sacar(self, valor):
+        if valor >= 0:
+            if self._saldo >= valor:
+                self._saldo -= valor
+                self.transacoes.append(f"Saque no valor de R${valor:.2f}")
+            else:
+                messagebox.showerror("ERRO", f"Saldo insuficiente, seu saldo atual é de: R${self._saldo:.2f}")
+        else:
+            messagebox.showerror("ERRO", "Valor inválido")
+            
+            
+    def transferir(self, valor, conta_destino):
+        if valor > 0 and valor <= self._saldo:
+            self.sacar(valor)
+            conta_destino.depositar(valor)
+            self.transacoes.append(f"Transferência de R${valor:.2f} para conta {conta_destino.num_conta}")
+        else:
+            messagebox.showerror("ERRO", f"Saldo insuficiente, seu saldo atual é de: R${self._saldo:.2f}")
+            
+            
+    def mostrar_extrato(self):
+        # messagebox.showinfo("Dados", f"Seus Dados Bancarios da conta corrente:\n\nNúmero da conta: {self.num_conta}\n\nSaldo: R${self._saldo:.2f}")
+        transacoes_str = "Ainda não há nada no histórico de transações" if not self.transacoes else '\n'.join(self.transacoes)
+        messagebox.showinfo("Extrato", f"EXTRATO DA SUA CONTA CORRENTE:\n\n{transacoes_str}\n\nSaldo atual: R${self._saldo:.2f}")
+        
+    def mostrar_dados(self):
+        # print(f"Dados Bancarios da conta corrente:\n\nNúmero da conta: {self.num_conta}\n\nSaldo: R${self._saldo:.2f}\n\n")
+        dados = f"Dados Bancários das contas corrente:\n\nNúmero da conta: {self.num_conta}\nSaldo: R${self._saldo:.2f}\n"
+        transacoes = "\n".join(self.transacoes)
+        messagebox.showinfo("Dados", dados + "Transações:\n" + transacoes)    
+            
+class Banco:
+    def __init__(self):
+        self.contas_banco = []
+        
+    def inserir(self, conta):
+        self.contas_banco.append(conta)
+        messagebox.showinfo("Sucesso", "Conta criada com sucesso!")
+            
+    def deletar(self, conta):
+        self.contas_banco.remove(conta)
         
 
-
-def menu():
-    menu = """
-    Bem vindo(a)! digite a opção da operação que deseja realizar:
-
-    [1] Deposito
-    [2] Saque
-    [3] Ver extrato
-    [4] Criar Conta
-    [5] Criar usuário
-    [6] Listar contas
-    [7] Sair
-
-    => """
     
-    return input(menu)
-
-
-def exibir_extrato(conta: Conta):
-    print("========== SEU EXTRATO ==========")
-    print("Ainda não há nada no extrato " if not conta._historico.transacoes else ''.join(conta.historico.transacoes))
-    print(f"\nSaldo atual: R${conta._saldo:.2f}")
-
-
-
-def cadastra_usuario(usuarios):
-    nome = input("Digite seu nome: ")
-    cpf = input("Digite seu CPF: ")
-    usuario = Cliente(nome, cpf)
-    usuarios.append(usuario)
-    print("Usuário cadastrado com sucesso!")
-    # cpf = input("Digite seu CPF: ")
-    # usuario = verifica_usuario(cpf, usuarios)
-    
-    # if usuario:
-    #     print("já existe um usuário cadastrado com esse CPF! ")
-    # else:
-    #     nome = input("Digite seu nome completo: ")
-    #     data_nasci = input("Digite sua data de nascimento no formato ddd/mm/aaaa: ")
-    #     # endereco = input("E seu endereço(numero, logradouro, bairro, cidade/sigla do estado): ")
-        
-    #     usuarios.append({"nome": nome, "cpf": cpf, "data_nascimento": data_nasci})
-    #     print("Usuário cadastrado com sucesso! ")
-
-def verifica_usuario(cpf, usuarios):
-    # usuarios_filtrados = []
-    for usuario in usuarios:
-        if usuario._cpf == cpf:
-            return usuario
-    
-    return None
-
-def criar_conta(agencia, num_conta, usuarios):
-    cpf = input("Digite seu CPF: ")
-    usuario = verifica_usuario(cpf, usuarios)
-    
-    if usuario:
-        conta = Conta(num_conta, usuario)
-        usuario.adicionar_conta(conta)
-        print("Conta criada com sucesso! ")
-        return conta
-    
-    print("Usuário não encontrado, cadastre um usuário antes de criar uma conta!")
-    return None
-        
-        
-def listar_contas(contas):
-    if not contas:
-        print("Nenhuma conta cadastrada ")
+    def procurar_conta(self, num_conta):
+        for conta in self.contas_banco:
+            if conta.num_conta == num_conta:
+                return conta
         return None
     
-    for conta in contas:
-        print(f"""
-            Agência: {conta._agencia}
-            Número da conta: {conta._numero}
-            Usuário: {conta._cliente._nome}
-            """)
-        print("=" * 100)
+
+# class Historico:
+#     def __init__(self):
+#         self.transacoes = []
     
+#     def adicionar_transacao(self, transacao):
+#         self.transacoes.append(transacao)
+
+
+
+def menu_principal():
+    menu1 = ("Digite a opção que deseja realizar:\n\n"
+            "[1] Criar conta\n[2] Entrar\n[3] Gerar relatório\n[4] Deletar conta\n[5] Sair")
+    
+    return simpledialog.askinteger("Menu", menu1)
+    
+    
+def menu2():
+    menu2 = "Digite a opção que deseja realizar\n\n[1] Depositar\n[2] Sacar\n[3] Transferir\n[4] Ver extrato\n[5] Sair"
+    
+    return simpledialog.askinteger("Menu", menu2)
+
 def main():
-    
-    AGENCIA = "0001"
-    num_conta = 1
-    usuarios = []
-    contas = []
-    
+    banco = Banco()
     while True:
-        opcao = menu()
-        match opcao:
-            case "1":
-                cpf = input("Digite seu CPF: ")
-                usuario = verifica_usuario(cpf, usuarios)
-                if usuario and usuario._contas:
-                    valor = float(input("Digite o valor que você quer depositar: "))
-                    usuario._contas[0].depositar(valor)
+        opcao1 = menu_principal()
+        match opcao1:
+            case 1:
+                num_conta = simpledialog.askstring("conta", "Digite o numero da conta: ")
+                valor = simpledialog.askfloat("Valor inicial", "Digite o valor que deseja depositar no seu saldo inicial\n"
+                                    "(se não quiser depositar nada coloque 0)")
+                if banco.procurar_conta(num_conta) is None:
+                    contac = ContaCorrente(num_conta, valor)
+                    # contac.depositar(valor)
+                    banco.inserir(contac)
+                    contac.mostrar_dados()
                 else:
-                    print("Essa conta não existe, crie uma para acessar nossos serviços! ")
-                
-            case "2":
-                cpf = input("Digite seu CPF: ")
-                usuario = verifica_usuario(cpf, usuarios)
-                if usuario and usuario._contas:
-                    valor = float(input("Digite a quantidade de dinheiro que você deseja sacar: "))
-                    usuario._contas[0].sacar(valor)
+                    messagebox.showerror("ERRO", "Já existe uma conta com esse número")
+            case 2:
+                num_conta = simpledialog.askstring("Entrar", "Digite o numero da conta")
+                conta = banco.procurar_conta(num_conta)
+                if conta:
+                    messagebox.showinfo("Sucesso", "Bem vindo!")
+                    while True:
+                        opcao2 = menu2()
+                        match opcao2:
+                            case 1:
+                                valor = simpledialog.askfloat("Deposito", "Digite o valor que você deseja depositar")
+                                conta.depositar(valor)
+                                messagebox.showinfo("Depósito", f"Depósito de R${valor:.2f} realizado com sucesso!")
+                            case 2:
+                                valor = simpledialog.askfloat("Deposito", "Digite o valor que você deseja sacar")
+                                conta.sacar(valor)
+                                messagebox.showinfo("Saque", f"Saque no valor de R${valor:.2f} realizado com sucesso!")
+                                
+                            case 3:
+                                num_conta_destino = simpledialog.askstring("Conta", "Digite o número da conta que vai receber a transferência:")
+                                conta_destino = banco.procurar_conta(num_conta_destino)
+                                if conta_destino:
+                                    if conta_destino != conta:
+                                        valor = simpledialog.askfloat("Transferência", "Digite o valor que deseja transferir:")
+                                        conta.transferir(valor, conta_destino)
+                                        messagebox.showinfo("Transferência", "Transferência realizada com sucesso! ")
+                                    else:
+                                        messagebox.showerror("ERRO", "As contas são iguais!")
+                                else:
+                                    messagebox.showerror("ERRO", "Essa conta não existe")
+                            
+                            case 4:
+                                conta.mostrar_extrato()
+                            
+                            case 5:
+                                messagebox.showinfo("Sair", "Deslogando...")
+                                break
                 else:
-                    print("Essa conta não existe, crie uma para acessar nossos serviços! ")
-                
-            case "3":
-                cpf = input("Digite seu CPF: ")
-                usuario = verifica_usuario(cpf, usuarios)
-                if usuario and usuario._contas:
-                    exibir_extrato(usuario._contas[0])
+                    messagebox.showerror("ERRO", "Essa conta não existe")
+            case 3:
+                for conta in banco.contas_banco:
+                    conta.mostrar_dados()
+            case 4:
+                num_conta = simpledialog.askstring("Deletar", "Digite o numero da conta que deseja deletar")
+                conta = banco.procurar_conta(num_conta)
+                if conta is None:
+                    messagebox.showerror("ERRO", "Essa conta não existe")
                 else:
-                    print("Usuário não encontrado! ")
-            
-            case "4":
-                newConta = criar_conta(AGENCIA, num_conta, usuarios)
+                    x = simpledialog.askstring("Warning", f"Tem certeza que deseja deletar a conta {num_conta}? Y/N")
+                    if x == "y" or "Y":
+                        banco.deletar(conta)
+                        messagebox.showinfo("Sucesso", f"Conta {num_conta} deletada com sucesso!")
+                    else:
+                        messagebox.showinfo("Conta", "Sua conta não foi deletada")
 
-                if newConta:
-                    contas.append(newConta)
-                    num_conta += 1
-            
-            case "5":
-                cadastra_usuario(usuarios)   
-            
-            case "6":
-                listar_contas(contas)
-                
-            case "7":
-                print("Volte sempre :)")
+            case 5:
                 break
-            case _:
-                print("Digite uma opção válida! ")
-
+    
 main()
-        
