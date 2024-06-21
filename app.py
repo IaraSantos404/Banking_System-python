@@ -1,14 +1,25 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 from abc import ABC, abstractmethod 
-# conta corrente, conta poupança, deposito, saque, histórico, verifica conta
-#criar selecionar, remover, gerar relatório, sair
-# depositar, sacar, transferir, ver informações, sair
+import datetime
+
 class Conta(ABC):
-    def __init__(self, num_conta, saldo, transacoes ):
+    def __init__(self, num_conta, saldo, transacoes, limite_transacoes_diarias = 3):
         self.num_conta = num_conta
         self._saldo = saldo
         self.transacoes = transacoes
+        self.limite_transacoes_diarias = limite_transacoes_diarias
+        self.transacoes_hoje = 0
+        self.ultima_transacao = datetime.date.today()
+    
+    def resetar_transacoes_diarias(self):
+        if self.ultima_transacao != datetime.date.today():
+            self.transacoes_hoje = 0
+            self.ultima_transacao = datetime.date.today()
+            
+    def registrar_transacao_diaria(self):
+        self.resetar_transacoes_diarias()
+        self.transacoes_hoje +=1
     
     @abstractmethod    
     def depositar(self, valor):
@@ -31,18 +42,28 @@ class ContaCorrente(Conta):
         super().__init__(num_conta, saldo, transacoes)
         
     def depositar(self, valor):
+        if self.transacoes_hoje >= self.limite_transacoes_diarias:
+            messagebox.showwarning("Inválido", "Limite de transações diárias atingido")
+            return None
         if valor > 0:
             self._saldo += valor
             self.transacoes.append(f"Depósito no valor de R${valor:.2f}")
-            
+            self.registrar_transacao_diaria()
+            return True
         else:
             messagebox.showerror("ERRO", "Valor inválido")
         
     def sacar(self, valor):
+        if self.transacoes_hoje >= self.limite_transacoes_diarias:
+            messagebox.showwarning("Inválido", "Limite de transações diárias atingido")
+            return None
+        
         if valor >= 0:
             if self._saldo >= valor:
                 self._saldo -= valor
                 self.transacoes.append(f"Saque no valor de R${valor:.2f}")
+                self.registrar_transacao_diaria()
+                return True
             else:
                 messagebox.showerror("ERRO", f"Saldo insuficiente, seu saldo atual é de: R${self._saldo:.2f}")
         else:
@@ -50,12 +71,20 @@ class ContaCorrente(Conta):
             
             
     def transferir(self, valor, conta_destino):
+        if self.transacoes_hoje >= self.limite_transacoes_diarias:
+            messagebox.showwarning("Inválido", "Limite de transações diárias atingido")
+            return None
         if valor > 0 and valor <= self._saldo:
-            self.sacar(valor)
-            conta_destino.depositar(valor)
+            self._saldo -= valor
+            conta_destino._saldo += valor
             self.transacoes.append(f"Transferência de R${valor:.2f} para conta {conta_destino.num_conta}")
+            conta_destino.transacoes.append(f"Transferência recebida de R${valor:.2f} da conta {self.num_conta}")
+            self.registrar_transacao_diaria()
+            return True
+            # conta_destino.registrar_transacao_diaria()
+            
         else:
-            messagebox.showerror("ERRO", f"Saldo insuficiente, seu saldo atual é de: R${self._saldo:.2f}")
+            messagebox.showerror("ERRO", f"Saldo insuficiente, 1seu saldo atual é de: R${self._saldo:.2f}")
             
             
     def mostrar_extrato(self):
@@ -67,8 +96,9 @@ class ContaCorrente(Conta):
         # print(f"Dados Bancarios da conta corrente:\n\nNúmero da conta: {self.num_conta}\n\nSaldo: R${self._saldo:.2f}\n\n")
         dados = f"Dados Bancários das contas corrente:\n\nNúmero da conta: {self.num_conta}\nSaldo: R${self._saldo:.2f}\n"
         transacoes = "\n".join(self.transacoes)
-        messagebox.showinfo("Dados", dados + "Transações:\n" + transacoes)    
-            
+        messagebox.showinfo("Dados", dados + "Transações:\n" + transacoes)   
+        
+        
 class Banco:
     def __init__(self):
         self.contas_banco = []
@@ -117,8 +147,7 @@ def main():
         match opcao1:
             case 1:
                 num_conta = simpledialog.askstring("conta", "Digite o numero da conta: ")
-                valor = simpledialog.askfloat("Valor inicial", "Digite o valor que deseja depositar no seu saldo inicial\n"
-                                    "(se não quiser depositar nada coloque 0)")
+                valor = simpledialog.askfloat("Valor inicial", "Digite o valor que deseja depositar no seu saldo inicial\n")
                 if banco.procurar_conta(num_conta) is None:
                     contac = ContaCorrente(num_conta, valor)
                     # contac.depositar(valor)
@@ -135,13 +164,14 @@ def main():
                         opcao2 = menu2()
                         match opcao2:
                             case 1:
+                                
                                 valor = simpledialog.askfloat("Deposito", "Digite o valor que você deseja depositar")
-                                conta.depositar(valor)
-                                messagebox.showinfo("Depósito", f"Depósito de R${valor:.2f} realizado com sucesso!")
+                                if conta.depositar(valor) != None:
+                                    messagebox.showinfo("Depósito", f"Depósito de R${valor:.2f} realizado com sucesso!")
                             case 2:
-                                valor = simpledialog.askfloat("Deposito", "Digite o valor que você deseja sacar")
-                                conta.sacar(valor)
-                                messagebox.showinfo("Saque", f"Saque no valor de R${valor:.2f} realizado com sucesso!")
+                                valor = simpledialog.askfloat("Saque", "Digite o valor que você deseja sacar")
+                                if conta.sacar(valor) != None:
+                                    messagebox.showinfo("Saque", f"Saque no valor de R${valor:.2f} realizado com sucesso!")
                                 
                             case 3:
                                 num_conta_destino = simpledialog.askstring("Conta", "Digite o número da conta que vai receber a transferência:")
@@ -149,8 +179,8 @@ def main():
                                 if conta_destino:
                                     if conta_destino != conta:
                                         valor = simpledialog.askfloat("Transferência", "Digite o valor que deseja transferir:")
-                                        conta.transferir(valor, conta_destino)
-                                        messagebox.showinfo("Transferência", "Transferência realizada com sucesso! ")
+                                        if conta.transferir(valor, conta_destino) != None:
+                                            messagebox.showinfo("Transferência", "Transferência realizada com sucesso! ")
                                     else:
                                         messagebox.showerror("ERRO", "As contas são iguais!")
                                 else:
@@ -181,6 +211,7 @@ def main():
                         messagebox.showinfo("Conta", "Sua conta não foi deletada")
 
             case 5:
+                messagebox.showinfo("Saindo", "Volte sempre!")
                 break
     
 main()
